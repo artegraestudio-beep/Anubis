@@ -1,0 +1,50 @@
+name: Build Anubis AI v2.0 from ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Anubis-AI-v2.0.zip'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Extract project archive
+        run: |
+          test -f Anubis-AI-v2.0.zip
+          unzip -q Anubis-AI-v2.0.zip -d "$RUNNER_TEMP/anubis-source"
+          test -f "$RUNNER_TEMP/anubis-source/Anubis-AI-v2.0/pubspec.yaml"
+
+      - name: Generate Android platform files
+        working-directory: ${{ runner.temp }}/anubis-source/Anubis-AI-v2.0
+        run: flutter create --platforms=android --project-name anubis_ai .
+
+      - name: Install Flutter dependencies
+        working-directory: ${{ runner.temp }}/anubis-source/Anubis-AI-v2.0
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: ${{ runner.temp }}/anubis-source/Anubis-AI-v2.0
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anubis-AI-v2.0-APK
+          path: ${{ runner.temp }}/anubis-source/Anubis-AI-v2.0/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
