@@ -1,0 +1,72 @@
+
+
+name: Build Anubis AI Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Prepare Android application
+        run: |
+          mkdir -p www
+          echo '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>Loading Anubis AI...</body></html>' > www/index.html
+          npm init -y
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.artegraestudio.anubis",
+            "appName": "Anubis AI",
+            "webDir": "www",
+            "server": {
+              "url": "https://artegraestudio-beep.github.io/Anubis/",
+              "cleartext": false
+            }
+          }
+          EOF
+          npx cap add android
+          npx cap sync android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Prepare APK
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/Anubis-AI-v2.0.apk
+          cd release
+          sha256sum Anubis-AI-v2.0.apk > Anubis-AI-v2.0.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Anubis-AI-v2.0-Android-APK
+          path: release/
+          retention-days: 30
